@@ -9,6 +9,16 @@ const APP_ID = "e8a4ab79-fce6-4372-bf04-c3ba7ad98d33";
 // -------------
 const inputStyle = "outline outline-2 mr-2 px-2";
 
+function editTodo(x, editList, setEditList) {
+  const label = document.getElementById("editTodo").value;
+  transact([
+    tx.todos[x.id].update({
+      label,
+    }),
+  ]);
+  setEditList(editList.filter((id) => id !== x.id));
+}
+
 // Components
 // -------------
 function Button({ onClick, label }) {
@@ -24,7 +34,7 @@ function Main() {
   const todos = data["todos"].sort((a, b) => a.ts - b.ts);
   console.log(todos.map((x) => x.ts));
   const todoRef = useRef(null);
-  const [editList, setEdiList] = useState([]);
+  const [editList, setEditList] = useState([]);
   return (
     <div className="mx-8 my-2">
       {todos.map((x) => (
@@ -51,25 +61,18 @@ function Main() {
                   className={inputStyle}
                   defaultValue={x.label}
                   id="editTodo"
+                  onBlur={() => editTodo(x, editList, setEditList)}
                   autoFocus
                 />
                 <Button
                   label="Update"
-                  onClick={() => {
-                    const label = document.getElementById("editTodo").value;
-                    transact([
-                      tx.todos[x.id].update({
-                        label,
-                      }),
-                    ]);
-                    setEdiList(editList.filter((id) => id !== x.id));
-                  }}
+                  onClick={() => editTodo(x, editList, setEditList)}
                 />
               </form>
             ) : (
               <>
                 <span
-                  onClick={() => setEdiList([...editList, x.id])}
+                  onClick={() => setEditList([...editList, x.id])}
                   className="mx-2 inline-block align-center"
                 >
                   {x.label}
