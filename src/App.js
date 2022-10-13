@@ -1,25 +1,131 @@
-import logo from './logo.svg';
-import './App.css';
+import { useState, useRef } from "react";
+import { useInit, useQuery, tx, transact, id } from "@instantdb/react";
 
-function App() {
+// Consts
+// -------------
+const APP_ID = "e8a4ab79-fce6-4372-bf04-c3ba7ad98d33";
+
+// Styles
+// -------------
+const inputStyle = "outline outline-2 mr-2 px-2";
+
+// Components
+// -------------
+function Button({ onClick, label }) {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <button className="border-2 px-4 py-2" onClick={onClick}>
+      {label}
+    </button>
+  );
+}
+
+function Main() {
+  const data = useQuery({ todos: {} });
+  const todos = data["todos"].sort((a, b) => a.ts - b.ts);
+  console.log(todos.map((x) => x.ts));
+  const todoRef = useRef(null);
+  const [editList, setEdiList] = useState([]);
+  return (
+    <div className="mx-8 my-2">
+      {todos.map((x) => (
+        <div key={x.id} className="my-2">
+          <span>
+            <input
+              className="mx-2"
+              type="checkbox"
+              onClick={(e) => {
+                transact([
+                  tx.todos[x.id].update({
+                    done: x.done === "true" ? "false" : "true",
+                  }),
+                ]);
+              }}
+              checked={x.done === "true" ? "checked" : ""}
+            />
+            {editList.indexOf(x.id) !== -1 ? (
+              <form
+                className="inline-block"
+                onSubmit={(e) => e.preventDefault()}
+              >
+                <input
+                  className={inputStyle}
+                  defaultValue={x.label}
+                  id="editTodo"
+                  autoFocus
+                />
+                <Button
+                  label="Update"
+                  onClick={() => {
+                    const label = document.getElementById("editTodo").value;
+                    transact([
+                      tx.todos[x.id].update({
+                        label,
+                      }),
+                    ]);
+                    setEdiList(editList.filter((id) => id !== x.id));
+                  }}
+                />
+              </form>
+            ) : (
+              <>
+                <span
+                  onClick={() => setEdiList([...editList, x.id])}
+                  className="mx-2 inline-block align-center"
+                >
+                  {x.label}
+                </span>
+                <Button
+                  onClick={(e) => transact([tx.todos[x.id].delete()])}
+                  label="Delete"
+                />
+              </>
+            )}
+          </span>
+        </div>
+      ))}
+      <span>
+        <form onSubmit={(e) => e.preventDefault()}>
+          <input className={inputStyle} ref={todoRef}></input>
+          <Button
+            onClick={(e) => {
+              const label = todoRef.current?.value;
+              if (!label) {
+                return;
+              }
+              const newID = id();
+              transact([
+                tx.todos[newID].update({ label, ts: new Date().getTime() }),
+              ]);
+              todoRef.current.value = null;
+            }}
+            label="Add Todo"
+          />
+        </form>
+      </span>
+      <Button
+        onClick={(e) => {
+          const ids = data["todos"].filter((x) => x.title).map((x) => x.id);
+          transact(ids.map((i) => tx.todos[i].delete()));
+        }}
+        label="Purge"
+      />
     </div>
   );
+}
+
+function App() {
+  const [isLoading, error, _] = useInit({
+    appId: APP_ID,
+    websocketURI: "wss://instant-server.herokuapp.com/api",
+    apiURI: "https://instant-server.herokuapp.com/api",
+  });
+  if (isLoading) {
+    return <div>...</div>;
+  }
+  if (error) {
+    return <div>Oi! {error?.message}</div>;
+  }
+  return <Main />;
 }
 
 export default App;
