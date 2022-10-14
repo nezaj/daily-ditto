@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useInit, useQuery, tx, transact, id } from "@instantdb/react";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 // Consts
 // -------------
@@ -19,6 +20,8 @@ function editTodo(x, editList, setEditList) {
   setEditList(editList.filter((id) => id !== x.id));
 }
 
+function onDragEnd(result) {}
+
 // Components
 // -------------
 function Button({ onClick, label }) {
@@ -37,55 +40,79 @@ function Main() {
   const [editList, setEditList] = useState([]);
   return (
     <div className="mx-8 my-2">
-      {todos.map((x) => (
-        <div key={x.id} className="my-2">
-          <span>
-            <input
-              className="mx-2"
-              type="checkbox"
-              onClick={(e) => {
-                transact([
-                  tx.todos[x.id].update({
-                    done: x.done === "true" ? "false" : "true",
-                  }),
-                ]);
-              }}
-              checked={x.done === "true" ? "checked" : ""}
-            />
-            {editList.indexOf(x.id) !== -1 ? (
-              <form
-                className="inline-block"
-                onSubmit={(e) => e.preventDefault()}
-              >
-                <input
-                  className={inputStyle}
-                  defaultValue={x.label}
-                  id="editTodo"
-                  onBlur={() => editTodo(x, editList, setEditList)}
-                  autoFocus
-                />
-                <Button
-                  label="Update"
-                  onClick={() => editTodo(x, editList, setEditList)}
-                />
-              </form>
-            ) : (
-              <>
-                <span
-                  onClick={() => setEditList([...editList, x.id])}
-                  className="mx-2 inline-block align-center"
-                >
-                  {x.label}
-                </span>
-                <Button
-                  onClick={(e) => transact([tx.todos[x.id].delete()])}
-                  label="Delete"
-                />
-              </>
-            )}
-          </span>
-        </div>
-      ))}
+      {window.location.hostname === "localhost" && (
+        <div className="my-4 text-center bg-teal-200">DEVELOPMENT</div>
+      )}
+      <DragDropContext onDragEnd={onDragEnd}>
+        <Droppable droppableId="todos">
+          {(pDrop) => (
+            <div ref={pDrop.innerRef} {...pDrop.droppableProps}>
+              {todos.map((x, idx) => (
+                <Draggable draggableId={x.id} index={idx}>
+                  {(pDrag) => (
+                    <div
+                      key={x.id}
+                      className="my-2"
+                      {...pDrag.draggableProps}
+                      {...pDrag.dragHandleProps}
+                      ref={pDrag.innerRef}
+                    >
+                      <span>
+                        <input
+                          className="mx-2"
+                          type="checkbox"
+                          onClick={(e) => {
+                            transact([
+                              tx.todos[x.id].update({
+                                done: x.done === "true" ? "false" : "true",
+                              }),
+                            ]);
+                          }}
+                          checked={x.done === "true" ? "checked" : ""}
+                        />
+                        {editList.indexOf(x.id) !== -1 ? (
+                          <form
+                            className="inline-block"
+                            onSubmit={(e) => e.preventDefault()}
+                          >
+                            <input
+                              className={inputStyle}
+                              defaultValue={x.label}
+                              id="editTodo"
+                              onBlur={() => editTodo(x, editList, setEditList)}
+                              autoFocus
+                            />
+                            <Button
+                              label="Update"
+                              onClick={() => editTodo(x, editList, setEditList)}
+                            />
+                          </form>
+                        ) : (
+                          <>
+                            <span
+                              onClick={() => setEditList([...editList, x.id])}
+                              className="mx-2 inline-block align-center"
+                            >
+                              {x.label}
+                            </span>
+                            <Button
+                              onClick={(e) =>
+                                transact([tx.todos[x.id].delete()])
+                              }
+                              label="Delete"
+                            />
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {pDrop.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
       <span>
         <form onSubmit={(e) => e.preventDefault()}>
           <input className={inputStyle} ref={todoRef}></input>
