@@ -81,6 +81,16 @@ function Button({ onClick, label }) {
   );
 }
 
+function Handle({ handleProps }) {
+  return (
+    <div className="w-8 h-8 ml-4 my-auto" {...handleProps}>
+      <div className="w-6 h-1 bg-slate-500 mt-2 mx-1" />
+      <div className="w-6 h-1 bg-slate-500 mt-1 mx-1" />
+      <div className="w-6 h-1 bg-slate-500 mt-1 mx-1" />
+    </div>
+  );
+}
+
 function Main() {
   const data = useQuery({ todos: {} });
   const todos = data["todos"].sort((a, b) => a.order - b.order);
@@ -149,14 +159,7 @@ function Main() {
                             />
                           </>
                         )}
-                        <div
-                          className="w-8 h-8 ml-4 my-auto"
-                          {...pDrag.dragHandleProps}
-                        >
-                          <div className="w-6 h-1 bg-slate-500 mt-2 mx-1" />
-                          <div className="w-6 h-1 bg-slate-500 mt-1 mx-1" />
-                          <div className="w-6 h-1 bg-slate-500 mt-1 mx-1" />
-                        </div>
+                        <Handle handleProps={pDrag.dragHandleProps} />
                       </div>
                     </div>
                   )}
