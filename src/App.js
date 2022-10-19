@@ -101,10 +101,9 @@ function Main() {
                     <div
                       className="my-2"
                       {...pDrag.draggableProps}
-                      {...pDrag.dragHandleProps}
                       ref={pDrag.innerRef}
                     >
-                      <span>
+                      <div className="flex content-center">
                         <input
                           className="mx-2"
                           type="checkbox"
@@ -138,7 +137,7 @@ function Main() {
                           <>
                             <span
                               onClick={() => setEditList([...editList, x.id])}
-                              className="mx-2 inline-block align-center"
+                              className="mx-2 my-auto"
                             >
                               {x.label}
                             </span>
@@ -150,7 +149,15 @@ function Main() {
                             />
                           </>
                         )}
-                      </span>
+                        <div
+                          className="w-8 h-8 ml-4 my-auto"
+                          {...pDrag.dragHandleProps}
+                        >
+                          <div className="w-6 h-1 bg-slate-500 mt-2 mx-1" />
+                          <div className="w-6 h-1 bg-slate-500 mt-1 mx-1" />
+                          <div className="w-6 h-1 bg-slate-500 mt-1 mx-1" />
+                        </div>
+                      </div>
                     </div>
                   )}
                 </Draggable>
