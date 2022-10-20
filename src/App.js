@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useInit, useQuery, tx, transact, id } from "@instantdb/react";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { TODAY, isToday, extractDate, friendlyDate, addDays } from "utils/date";
 
 // Consts
 // -------------
@@ -92,15 +93,50 @@ function Handle({ handleProps }) {
 }
 
 function Main() {
-  const data = useQuery({ todos: {} });
+  const [displayDate, setDisplayDate] = useState(TODAY);
+  console.log("displayDate", extractDate(displayDate));
+  const data = useQuery({
+    todos: {
+      $: {
+        where: { createdAtDate: extractDate(displayDate) },
+      },
+    },
+  });
+  console.log(data.todos);
   const todos = data["todos"].sort((a, b) => a.order - b.order);
+  console.log("todos", todos);
+  console.log(
+    "valid todos?",
+    todos.map((x) => x.createdAtDate === extractDate(displayDate))
+  );
   const todoRef = useRef(null);
   const [editList, setEditList] = useState([]);
   return (
-    <div className="mx-8 my-2">
+    <div className="w-96 mx-auto px-4">
       {window.location.hostname === "localhost" && (
         <div className="my-4 text-center bg-teal-200">DEVELOPMENT</div>
       )}
+      <div className="grid grid-flow-col my-4">
+        <button
+          className="justify-self-start"
+          onClick={() => setDisplayDate(addDays(displayDate, -1))}
+        >
+          {"<"}
+        </button>
+        <span className="justify-self-center">
+          {friendlyDate(extractDate(displayDate))}
+        </span>
+        {!isToday(displayDate) ? (
+          <button
+            className="justify-self-end"
+            onClick={() => setDisplayDate(addDays(displayDate, 1))}
+          >
+            {">"}
+          </button>
+        ) : (
+          <div></div>
+        )}
+      </div>
       <DragDropContext onDragEnd={(result) => onDragEnd(result, todos)}>
         <Droppable droppableId="todos">
           {(pDrop) => (
@@ -113,9 +149,9 @@ function Main() {
                       {...pDrag.draggableProps}
                       ref={pDrag.innerRef}
                     >
-                      <div className="flex content-center">
+                      <div className="flex">
                         <input
-                          className="mx-2"
+                          className="mx-2 my-auto"
                           type="checkbox"
                           onChange={(e) => {
                             transact([
@@ -170,37 +206,40 @@ function Main() {
           )}
         </Droppable>
       </DragDropContext>
-      <span>
-        <form onSubmit={(e) => e.preventDefault()}>
-          <input className={inputStyle} ref={todoRef}></input>
+      {isToday(displayDate) && (
+        <>
+          <span>
+            <form onSubmit={(e) => e.preventDefault()}>
+              <input className={inputStyle} ref={todoRef}></input>
+              <Button
+                onClick={(e) => {
+                  const label = todoRef.current?.value;
+                  if (!label) {
+                    return;
+                  }
+                  const newID = id();
+                  const order = lastOrder(todos);
+                  const ts = new Date();
+                  transact([
+                    tx.todos[newID].update({
+                      label,
+                      createdAt: ts.getTime(),
+                      createdAtDate: extractDate(ts),
+                      order,
+                    }),
+                  ]);
+                  todoRef.current.value = null;
+                }}
+                label="Add Todo"
+              />
+            </form>
+          </span>
           <Button
-            onClick={(e) => {
-              const label = todoRef.current?.value;
-              if (!label) {
-                return;
-              }
-              const newID = id();
-              const order = lastOrder(todos);
-              transact([
-                tx.todos[newID].update({
-                  label,
-                  ts: new Date().getTime(),
-                  order,
-                }),
-              ]);
-              todoRef.current.value = null;
-            }}
-            label="Add Todo"
+            onClick={(e) => transact(todos.map((x) => tx.todos[x.id].delete()))}
+            label="Purge"
           />
-        </form>
-      </span>
-      <Button
-        onClick={(e) => {
-          const ids = todos.map((x) => x.id);
-          transact(ids.map((i) => tx.todos[i].delete()));
-        }}
-        label="Purge"
-      />
+        </>
+      )}
     </div>
   );
 }
