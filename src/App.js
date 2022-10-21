@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useInit, useQuery, tx, transact, id } from "@instantdb/react";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { TODAY, isToday, extractDate, friendlyDate, addDays } from "utils/date";
@@ -11,18 +11,30 @@ const APP_ID = "e8a4ab79-fce6-4372-bf04-c3ba7ad98d33";
 // -------------
 const inputStyle = "outline outline-2 mr-2 px-2";
 
-function editTodo(x, editList, setEditList) {
+function deleteTodo(t) {
+  const masterTx = isToday(new Date(t.createdForDate))
+    ? [tx.masterTodos[t.masterId].delete()]
+    : [];
+  transact(masterTx.concat([tx.todos[t.id].delete()]));
+}
+
+function editTodo(t, editList, setEditList) {
   const label = document.getElementById("editTodo").value;
-  transact([
-    tx.todos[x.id].update({
-      label,
-    }),
-  ]);
-  setEditList(editList.filter((id) => id !== x.id));
+  const masterTx = isToday(new Date(t.createdForDate))
+    ? [tx.masterTodos[t.masterId].update({ label })]
+    : [];
+  transact(
+    masterTx.concat([
+      tx.todos[t.id].update({
+        label,
+      }),
+    ])
+  );
+  setEditList(editList.filter((id) => id !== t.id));
 }
 
 function onDragEnd(result, todos) {
-  const { destination, source, draggableId } = result;
+  const { destination, source } = result;
 
   if (!destination) {
     return;
@@ -52,8 +64,11 @@ function onDragEnd(result, todos) {
     console.log("Oi! This shouldn't happen! Ping Joe @ joeaverbukh@gmail.com");
   }
 
-  const updateId = todos[source.index].id;
-  transact([tx.todos[updateId].update({ order: newOrder })]);
+  const { id, masterId, createdForDate } = todos[source.index];
+  const masterTx = isToday(new Date(createdForDate))
+    ? [tx.masterTodos[masterId].update({ order: newOrder })]
+    : [];
+  transact(masterTx.concat([tx.todos[id].update({ order: newOrder })]));
 }
 
 function firstOrder(todos) {
@@ -92,51 +107,78 @@ function Handle({ handleProps }) {
   );
 }
 
+function DateHeader({ displayDate, setDisplayDate }) {
+  return (
+    <div className="grid grid-flow-col my-4">
+      <button
+        className="justify-self-start"
+        onClick={() => setDisplayDate(addDays(displayDate, -1))}
+      >
+        {"<"}
+      </button>
+      <span className="justify-self-center">
+        {friendlyDate(extractDate(displayDate))}
+      </span>
+      {true || !isToday(displayDate) ? (
+        <button
+          className="justify-self-end"
+          onClick={() => setDisplayDate(addDays(displayDate, 1))}
+        >
+          {">"}
+        </button>
+      ) : (
+        <div></div>
+      )}
+    </div>
+  );
+}
+
+function Devbar() {
+  return (
+    window.location.hostname === "localhost" && (
+      <div className="my-4 text-center bg-teal-200">DEVELOPMENT</div>
+    )
+  );
+}
+
 function Main() {
   const [displayDate, setDisplayDate] = useState(TODAY);
-  console.log("displayDate", extractDate(displayDate));
   const data = useQuery({
-    todos: {
-      $: {
-        where: { createdAtDate: extractDate(displayDate) },
-      },
-    },
+    todos: {},
+    masterTodos: {},
   });
-  console.log(data.todos);
-  const todos = data["todos"].sort((a, b) => a.order - b.order);
-  console.log("todos", todos);
-  console.log(
-    "valid todos?",
-    todos.map((x) => x.createdAtDate === extractDate(displayDate))
+  const todos = data["todos"]
+    .filter((x) => x.createdForDate === extractDate(displayDate))
+    .sort((a, b) => a.order - b.order);
+  const masterTodos = data["masterTodos"].filter(
+    (x) => new Date(x.startDate) <= new Date(extractDate(displayDate))
   );
+  console.log(masterTodos);
+
   const todoRef = useRef(null);
   const [editList, setEditList] = useState([]);
+  useEffect(() => {
+    if (masterTodos.length && !todos.length) {
+      const ts = new Date();
+      transact(
+        masterTodos.map((t) =>
+          tx.todos[id()].update({
+            label: t.label,
+            createdAt: ts.getTime(),
+            createdForDate: extractDate(displayDate),
+            order: t.order,
+          })
+        )
+      );
+    }
+  }, [masterTodos.length, todos.length, displayDate]);
+
+  // Create instances of todos at runtime for new days
+
   return (
     <div className="w-96 mx-auto px-4">
-      {window.location.hostname === "localhost" && (
-        <div className="my-4 text-center bg-teal-200">DEVELOPMENT</div>
-      )}
-      <div className="grid grid-flow-col my-4">
-        <button
-          className="justify-self-start"
-          onClick={() => setDisplayDate(addDays(displayDate, -1))}
-        >
-          {"<"}
-        </button>
-        <span className="justify-self-center">
-          {friendlyDate(extractDate(displayDate))}
-        </span>
-        {!isToday(displayDate) ? (
-          <button
-            className="justify-self-end"
-            onClick={() => setDisplayDate(addDays(displayDate, 1))}
-          >
-            {">"}
-          </button>
-        ) : (
-          <div></div>
-        )}
-      </div>
+      <Devbar />
+      <DateHeader displayDate={displayDate} setDisplayDate={setDisplayDate} />
       <DragDropContext onDragEnd={(result) => onDragEnd(result, todos)}>
         <Droppable droppableId="todos">
           {(pDrop) => (
@@ -153,7 +195,7 @@ function Main() {
                         <input
                           className="mx-2 my-auto"
                           type="checkbox"
-                          onChange={(e) => {
+                          onChange={(_) => {
                             transact([
                               tx.todos[x.id].update({
                                 done: x.done === "true" ? "false" : "true",
@@ -188,9 +230,7 @@ function Main() {
                               {x.label}
                             </span>
                             <Button
-                              onClick={(e) =>
-                                transact([tx.todos[x.id].delete()])
-                              }
+                              onClick={() => deleteTodo(x)}
                               label="Delete"
                             />
                           </>
@@ -206,28 +246,48 @@ function Main() {
           )}
         </Droppable>
       </DragDropContext>
-      {isToday(displayDate) && (
+      {(true || isToday(displayDate)) && (
         <>
           <span>
             <form onSubmit={(e) => e.preventDefault()}>
               <input className={inputStyle} ref={todoRef}></input>
               <Button
-                onClick={(e) => {
+                onClick={() => {
                   const label = todoRef.current?.value;
                   if (!label) {
                     return;
                   }
-                  const newID = id();
+                  const todoId = id();
                   const order = lastOrder(todos);
                   const ts = new Date();
-                  transact([
-                    tx.todos[newID].update({
-                      label,
-                      createdAt: ts.getTime(),
-                      createdAtDate: extractDate(ts),
-                      order,
-                    }),
-                  ]);
+                  // Create master todo if adding todo for today's date
+                  if (isToday(displayDate)) {
+                    const masterId = id();
+                    transact([
+                      tx.masterTodos[masterId].update({
+                        label,
+                        createdAt: ts.getTime(),
+                        startDate: extractDate(TODAY),
+                        order,
+                      }),
+                      tx.todos[todoId].update({
+                        masterId,
+                        label,
+                        createdAt: ts.getTime(),
+                        createdForDate: extractDate(TODAY),
+                        order,
+                      }),
+                    ]);
+                  } else {
+                    transact([
+                      tx.todos[todoId].update({
+                        label,
+                        createdAt: ts.getTime(),
+                        createdForDate: extractDate(displayDate),
+                        order,
+                      }),
+                    ]);
+                  }
                   todoRef.current.value = null;
                 }}
                 label="Add Todo"
