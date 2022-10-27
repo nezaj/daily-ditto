@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useInit, useQuery, tx, transact, id } from "@instantdb/react";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import { TODAY, isToday, extractDate, friendlyDate, addDays } from "utils/date";
+import { TODAY, isToday, extractDate, friendlyDate } from "utils/date";
+
+import { addDays, subDays, isAfter } from "date-fns";
 
 // Consts
 // -------------
@@ -87,6 +89,35 @@ function lastOrder(todos) {
   return Math.max(...todos.map((x) => x.order)) + 1;
 }
 
+function getAgendaForDate(allTodos, agendaDate) {
+  return allTodos.filter((t) => t.createdForDate === agendaDate);
+}
+
+function isVictory(todos) {
+  return todos.length && todos.every((t) => t.done === "true");
+}
+
+function calculateStreaks(allTodos, activeDate) {
+  const startDate = subDays(new Date(), 3);
+  let currDate = subDays(activeDate, 1);
+  let streak = 0;
+  let tempAgenda = null;
+  let breakStreak = false;
+  while (isAfter(currDate, startDate) && !breakStreak) {
+    tempAgenda = getAgendaForDate(allTodos, extractDate(currDate));
+    if (!tempAgenda.length) {
+      currDate = subDays(currDate, 1);
+    } else if (isVictory(tempAgenda)) {
+      streak += 1;
+      currDate = subDays(currDate, 1);
+    } else {
+      breakStreak = true;
+    }
+  }
+
+  return streak;
+}
+
 // Components
 // -------------
 function Button({ onClick, label }) {
@@ -107,22 +138,22 @@ function Handle({ handleProps }) {
   );
 }
 
-function DateHeader({ displayDate, setDisplayDate }) {
+function DateHeader({ activeDate, setActiveDate }) {
   return (
     <div className="grid grid-flow-col my-4">
       <button
         className="justify-self-start"
-        onClick={() => setDisplayDate(addDays(displayDate, -1))}
+        onClick={() => setActiveDate(addDays(activeDate, -1))}
       >
         {"<"}
       </button>
       <span className="justify-self-center">
-        {friendlyDate(extractDate(displayDate))}
+        {friendlyDate(extractDate(activeDate))}
       </span>
-      {true || !isToday(displayDate) ? (
+      {!isToday(activeDate) ? (
         <button
           className="justify-self-end"
-          onClick={() => setDisplayDate(addDays(displayDate, 1))}
+          onClick={() => setActiveDate(addDays(activeDate, 1))}
         >
           {">"}
         </button>
@@ -141,44 +172,75 @@ function Devbar() {
   );
 }
 
+function StreakMessage({ streak }) {
+  return (
+    streak > 0 && (
+      <div className="mb-4">
+        <div className="text-lg text-center mb-2">🔥 {streak}</div>
+      </div>
+    )
+  );
+}
+
+function IncompleteTasksMessage({ streak }) {
+  return (
+    <div className="mb-4">
+      <StreakMessage streak={streak} />
+    </div>
+  );
+}
+
+function AllTasksCompleteMessage({ streak }) {
+  return (
+    <div className="mb-4">
+      <StreakMessage streak={streak} />
+      <div className="text-lg text-center mb-2">
+        All tasks complete, you rock!
+      </div>
+    </div>
+  );
+}
+
 function Main() {
-  const [displayDate, setDisplayDate] = useState(TODAY);
+  const [activeDate, setActiveDate] = useState(TODAY);
   const data = useQuery({
     todos: {},
     masterTodos: {},
   });
-  const todos = data["todos"]
-    .filter((x) => x.createdForDate === extractDate(displayDate))
+  const allTodos = data["todos"];
+  const streak = calculateStreaks(allTodos, activeDate);
+  const todos = allTodos
+    .filter((x) => x.createdForDate === extractDate(activeDate))
     .sort((a, b) => a.order - b.order);
   const masterTodos = data["masterTodos"].filter(
-    (x) => new Date(x.startDate) <= new Date(extractDate(displayDate))
+    (x) => new Date(x.startDate) <= new Date(extractDate(activeDate))
   );
-  console.log(masterTodos);
-
   const todoRef = useRef(null);
   const [editList, setEditList] = useState([]);
+
   useEffect(() => {
     if (masterTodos.length && !todos.length) {
       const ts = new Date();
       transact(
         masterTodos.map((t) =>
           tx.todos[id()].update({
+            masterId: t.id,
             label: t.label,
             createdAt: ts.getTime(),
-            createdForDate: extractDate(displayDate),
+            createdForDate: extractDate(activeDate),
             order: t.order,
           })
         )
       );
     }
-  }, [masterTodos.length, todos.length, displayDate]);
+  }, [masterTodos.length, todos.length, activeDate]);
 
   // Create instances of todos at runtime for new days
 
   return (
     <div className="w-96 mx-auto px-4">
       <Devbar />
-      <DateHeader displayDate={displayDate} setDisplayDate={setDisplayDate} />
+      <DateHeader activeDate={activeDate} setActiveDate={setActiveDate} />
       <DragDropContext onDragEnd={(result) => onDragEnd(result, todos)}>
         <Droppable droppableId="todos">
           {(pDrop) => (
@@ -246,7 +308,7 @@ function Main() {
           )}
         </Droppable>
       </DragDropContext>
-      {(true || isToday(displayDate)) && (
+      {isToday(activeDate) && (
         <>
           <span>
             <form onSubmit={(e) => e.preventDefault()}>
@@ -261,7 +323,7 @@ function Main() {
                   const order = lastOrder(todos);
                   const ts = new Date();
                   // Create master todo if adding todo for today's date
-                  if (isToday(displayDate)) {
+                  if (isToday(activeDate)) {
                     const masterId = id();
                     transact([
                       tx.masterTodos[masterId].update({
@@ -283,7 +345,7 @@ function Main() {
                       tx.todos[todoId].update({
                         label,
                         createdAt: ts.getTime(),
-                        createdForDate: extractDate(displayDate),
+                        createdForDate: extractDate(activeDate),
                         order,
                       }),
                     ]);
@@ -295,10 +357,22 @@ function Main() {
             </form>
           </span>
           <Button
-            onClick={(e) => transact(todos.map((x) => tx.todos[x.id].delete()))}
+            onClick={(_) => transact(todos.map((x) => deleteTodo(x)))}
             label="Purge"
           />
+          <div className="m-2" />
+          <Button
+            onClick={(_) =>
+              transact(masterTodos.map((x) => tx.masterTodos[x.id].delete()))
+            }
+            label="Purge Master"
+          />
         </>
+      )}
+      {isVictory(todos) ? (
+        <AllTasksCompleteMessage streak={streak + 1} />
+      ) : (
+        <IncompleteTasksMessage streak={streak} />
       )}
     </div>
   );
