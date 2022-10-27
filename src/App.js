@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useInit, useQuery, tx, transact, id } from "@instantdb/react";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import { TODAY, isToday, extractDate, friendlyDate } from "utils/date";
+import { TODAY, isToday, extractDate, friendlyDate, minDate } from "utils/date";
 
 import { addDays, subDays, isAfter } from "date-fns";
 
@@ -98,7 +98,7 @@ function isVictory(todos) {
 }
 
 function calculateStreaks(allTodos, activeDate) {
-  const startDate = subDays(new Date(), 3);
+  const startDate = minDate(allTodos.map((t) => t.createdForDate));
   let currDate = subDays(activeDate, 1);
   let streak = 0;
   let tempAgenda = null;
