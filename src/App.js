@@ -98,7 +98,7 @@ function isVictory(todos) {
 }
 
 function calculateStreaks(allTodos, activeDate) {
-  const startDate = minDate(allTodos.map((t) => t.createdForDate));
+  const startDate = new Date(minDate(allTodos.map((t) => t.createdForDate)));
   let currDate = subDays(activeDate, 1);
   let streak = 0;
   let tempAgenda = null;
@@ -138,7 +138,7 @@ function Handle({ handleProps }) {
   );
 }
 
-function DateHeader({ activeDate, setActiveDate }) {
+function DateNav({ activeDate, setActiveDate }) {
   return (
     <div className="grid grid-flow-col my-4">
       <button
@@ -150,7 +150,7 @@ function DateHeader({ activeDate, setActiveDate }) {
       <span className="justify-self-center">
         {friendlyDate(extractDate(activeDate))}
       </span>
-      {!isToday(activeDate) ? (
+      {true || !isToday(activeDate) ? (
         <button
           className="justify-self-end"
           onClick={() => setActiveDate(addDays(activeDate, 1))}
@@ -201,6 +201,8 @@ function AllTasksCompleteMessage({ streak }) {
   );
 }
 
+const copiedDates = new Set();
+
 function Main() {
   const [activeDate, setActiveDate] = useState(TODAY);
   const data = useQuery({
@@ -219,6 +221,17 @@ function Main() {
   const [editList, setEditList] = useState([]);
 
   useEffect(() => {
+    const date = extractDate(activeDate);
+    if (!isAfter(activeDate, TODAY)) {
+      return;
+    }
+    if (copiedDates.has(date)) {
+      return;
+    }
+    if (todos.length) {
+      copiedDates.add(date);
+      return;
+    }
     if (masterTodos.length && !todos.length) {
       const ts = new Date();
       transact(
@@ -227,11 +240,12 @@ function Main() {
             masterId: t.id,
             label: t.label,
             createdAt: ts.getTime(),
-            createdForDate: extractDate(activeDate),
+            createdForDate: date,
             order: t.order,
           })
         )
       );
+      copiedDates.add(date);
     }
   }, [masterTodos.length, todos.length, activeDate]);
 
@@ -240,7 +254,7 @@ function Main() {
   return (
     <div className="w-96 mx-auto px-4">
       <Devbar />
-      <DateHeader activeDate={activeDate} setActiveDate={setActiveDate} />
+      <DateNav activeDate={activeDate} setActiveDate={setActiveDate} />
       <DragDropContext onDragEnd={(result) => onDragEnd(result, todos)}>
         <Droppable droppableId="todos">
           {(pDrop) => (
