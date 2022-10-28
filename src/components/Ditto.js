@@ -202,15 +202,15 @@ function Ditto({
     if (copiedDates.has(date)) {
       return;
     }
-    if (todos.length) {
+    if (activeTodos.length) {
       copiedDates.add(date);
       return;
     }
-    if (masterTodos.length && !todos.length) {
+    if (masterTodos.length && !activeTodos.length) {
       generateTodos(masterTodos, date);
       copiedDates.add(date);
     }
-  }, [masterTodos.length, todos.length, activeDate]);
+  }, [masterTodos.length, activeTodos.length, activeDate]);
 
   return (
     <div className="w-96 mx-auto px-4">
@@ -222,7 +222,7 @@ function Ditto({
         <Droppable droppableId="todos">
           {(pDrop) => (
             <div ref={pDrop.innerRef} {...pDrop.droppableProps}>
-              {todos.map((x, idx) => (
+              {activeTodos.map((x, idx) => (
                 <Draggable key={x.id} draggableId={x.id} index={idx}>
                   {(pDrag) => (
                     <div
