@@ -217,7 +217,7 @@ function Ditto({
       <Devbar />
       <DateNav activeDate={activeDate} setActiveDate={setActiveDate} />
       <DragDropContext
-        onDragEnd={(result) => onDragEnd(result, todos, updateTodo)}
+        onDragEnd={(result) => onDragEnd(result, activeTodos, updateTodo)}
       >
         <Droppable droppableId="todos">
           {(pDrop) => (
@@ -304,7 +304,7 @@ function Ditto({
                   if (!label) {
                     return;
                   }
-                  const order = lastOrder(todos);
+                  const order = lastOrder(activeTodos);
                   createTodo(activeDate, label, order);
                   todoRef.current.value = null;
                 }}
@@ -315,7 +315,7 @@ function Ditto({
           <Button onClick={(_) => deleteTodos(activeTodos)} label="Purge" />
         </>
       )}
-      {isVictory(todos) ? (
+      {isVictory(activeTodos) ? (
         <AllTasksCompleteMessage streak={streak + 1} />
       ) : (
         <IncompleteTasksMessage streak={streak} />
