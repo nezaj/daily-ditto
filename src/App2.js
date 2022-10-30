@@ -1,5 +1,6 @@
 import { useInit } from "@instantdb/react";
 
+import LocalDitto from "components/LocalDitto";
 import InstantDitto from "components/InstantDitto";
 
 // Consts
@@ -20,7 +21,7 @@ function App() {
   if (error) {
     return <div>Oi! {error?.message}</div>;
   }
-  return <InstantDitto />;
+  return <LocalDitto />;
 }
 
 export default App;
