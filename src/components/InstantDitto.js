@@ -3,11 +3,11 @@ import { useQuery, tx, transact, id } from "@instantdb/react";
 import { TODAY, isToday, extractDate } from "utils/date";
 import Ditto from "components/Ditto";
 
-function fetchData() {
-  return (() => useQuery({
+function useFetchData() {
+  return useQuery({
     todos: {},
     masterTodos: {},
-  }))();
+  });
 }
 
 function generateTodos(masterTodos, date) {
@@ -84,7 +84,7 @@ function deleteTodos(todos) {
 
 function InstantDitto() {
   return <Ditto
-    fetchData={fetchData}
+    useFetchData={useFetchData}
     generateTodos={generateTodos}
     createTodo={createTodo}
     updateTodo={updateTodo}

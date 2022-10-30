@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { tx, transact } from "@instantdb/react";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { TODAY, isToday, extractDate, friendlyDate, minDate } from "utils/date";
 
@@ -71,7 +70,10 @@ function isVictory(todos) {
 }
 
 function calculateStreaks(allTodos, activeDate) {
-  const startDate = new Date(minDate(allTodos.map((t) => t.createdForDate)));
+  const startDate = allTodos.length
+    ? new Date(minDate(allTodos.map((t) => t.createdForDate)))
+    : activeDate;
+
   let currDate = subDays(activeDate, 1);
   let streak = 0;
   let tempAgenda = null;
@@ -177,7 +179,7 @@ function AllTasksCompleteMessage({ streak }) {
 const copiedDates = new Set();
 
 function Ditto({
-  fetchData,
+  useFetchData,
   generateTodos,
   createTodo,
   updateTodo,
@@ -185,7 +187,7 @@ function Ditto({
   toggleTodo,
 }) {
   const [activeDate, setActiveDate] = useState(TODAY);
-  const { todos, masterTodos } = fetchData();
+  const { todos, masterTodos } = useFetchData();
   const streak = calculateStreaks(todos, activeDate);
 
   const activeTodos = todos
@@ -251,7 +253,7 @@ function Ditto({
                               defaultValue={x.label}
                               id="updateTodo"
                               onBlur={() => {
-                                const newData = {label: document.getElementById("editTodo").value}
+                                const newData = {label: document.getElementById("updateTodo").value}
                                 updateTodo(x, newData, updateList, setUpdateList)
                                 setUpdateList(updateList.filter((id) => id !== x.id));
 
@@ -261,7 +263,7 @@ function Ditto({
                             <Button
                               label="Update"
                               onClick={() => {
-                                const newData = {label: document.getElementById("editTodo").value}
+                                const newData = {label: document.getElementById("updateTodo").value}
                                 updateTodo(x, newData, updateList, setUpdateList)
                                 setUpdateList(updateList.filter((id) => id !== x.id));
 
