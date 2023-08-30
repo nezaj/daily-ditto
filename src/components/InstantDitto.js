@@ -1,14 +1,7 @@
 import { useQuery, tx, transact, id } from "@instantdb/react";
 
-import { TODAY, isToday, extractDate } from "utils/date";
-import Ditto from "components/Ditto";
-
-function useFetchData() {
-  return useQuery({
-    todos: {},
-    masterTodos: {},
-  });
-}
+import { TODAY, isToday, extractDate } from "../utils/date";
+import Ditto from "./Ditto";
 
 function generateTodos(masterTodos, date) {
   const ts = new Date();
@@ -65,10 +58,7 @@ function updateTodo(todo, newData) {
   const masterTx = isToday(new Date(todo.createdForDate))
     ? [tx.masterTodos[todo.masterId].update(newData)]
     : [];
-  transact(
-    masterTx.concat([
-      tx.todos[todo.id].update(newData)
-    ]));
+  transact(masterTx.concat([tx.todos[todo.id].update(newData)]));
 }
 
 function deleteTodo(todo) {
@@ -79,18 +69,24 @@ function deleteTodo(todo) {
 }
 
 function deleteTodos(todos) {
-  todos.map(t => deleteTodo(t))
+  todos.map((t) => deleteTodo(t));
 }
 
 function InstantDitto() {
-  return <Ditto
-    useFetchData={useFetchData}
-    generateTodos={generateTodos}
-    createTodo={createTodo}
-    updateTodo={updateTodo}
-    deleteTodos={deleteTodos}
-    toggleTodo={toggleTodo}
-    />;
+  const { isLoading, error, data } = useQuery({ todos: {}, masterTodos: {} });
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <Ditto
+      useFetchData={() => data}
+      generateTodos={generateTodos}
+      createTodo={createTodo}
+      updateTodo={updateTodo}
+      deleteTodos={deleteTodos}
+      toggleTodo={toggleTodo}
+    />
+  );
 }
 
 export default InstantDitto;

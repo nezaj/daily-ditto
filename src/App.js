@@ -1,27 +1,17 @@
-import { useInit } from "@instantdb/react";
+import { init } from "@instantdb/react";
 
-import LocalDitto from "components/LocalDitto";
-import InstantDitto from "components/InstantDitto";
+import LocalDitto from "./components/LocalDitto";
+import InstantDitto from "./components//InstantDitto";
 
-// Consts
-// -------------
 const APP_ID = "e8a4ab79-fce6-4372-bf04-c3ba7ad98d33";
 
-// Styles
-// -------------
+init({
+  appId: APP_ID,
+  websocketURI: "wss://api.instantdb.com/runtime/session",
+});
+
 function App() {
-  const [isLoading, error, _] = useInit({
-    appId: APP_ID,
-    websocketURI: "wss://instant-server.herokuapp.com/api",
-    apiURI: "https://instant-server.herokuapp.com/api",
-  });
-  if (isLoading) {
-    return <div>...</div>;
-  }
-  if (error) {
-    return <div>Oi! {error?.message}</div>;
-  }
-  return <LocalDitto />;
+  return <InstantDitto />;
 }
 
 export default App;
