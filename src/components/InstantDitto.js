@@ -1,6 +1,6 @@
 import { useQuery, tx, transact, id } from "@instantdb/react";
 
-import { TODAY, isToday, extractDate } from "./utils/date";
+import { TODAY, isToday, extractDate } from "../utils/date";
 import Ditto from "./Ditto";
 
 function generateTodos(masterTodos, date) {
